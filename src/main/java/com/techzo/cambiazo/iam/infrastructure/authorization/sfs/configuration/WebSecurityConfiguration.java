@@ -109,6 +109,7 @@ public class WebSecurityConfiguration {
                                 "/api/v2/donations/**",
                                 "/api/v2/countries",
                                 "/api/v2/countries/**",
+                                "/api/v2/exchanges/ai/**",
                                 "/api/v2/departments",
                                 "/api/v2/products/**",
                                 "/api/v2/products",
@@ -124,7 +125,7 @@ public class WebSecurityConfiguration {
                                 "/v3/api-docs/**",
                                 "/swagger-ui.html",
                                 "/swagger-ui/**"
-                                ).permitAll()
+                        ).permitAll()
                         .anyRequest().authenticated());
         http.authenticationProvider(authenticationProvider());
         http.addFilterBefore(authorizationRequestFilter(), UsernamePasswordAuthenticationFilter.class);
