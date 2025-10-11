@@ -1,15 +1,21 @@
 package com.techzo.cambiazo.iam.interfaces.acl;
 
+import com.techzo.cambiazo.iam.application.internal.commandservices.UserBanCommandServiceImpl;
+import com.techzo.cambiazo.iam.domain.model.commands.BanUserCommand;
 import com.techzo.cambiazo.iam.domain.model.commands.SignUpCommand;
+import com.techzo.cambiazo.iam.domain.model.commands.UnbanUserCommand;
 import com.techzo.cambiazo.iam.domain.model.entities.Role;
 import com.techzo.cambiazo.iam.domain.model.queries.GetUserByIdQuery;
 import com.techzo.cambiazo.iam.domain.model.queries.GetUserByUsernameQuery;
 import com.techzo.cambiazo.iam.domain.services.UserCommandService;
 import com.techzo.cambiazo.iam.domain.services.UserQueryService;
 import org.apache.logging.log4j.util.Strings;
+import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * IamContextFacade
@@ -20,13 +26,16 @@ import java.util.List;
  * </p>
  *
  */
+@Service
 public class IamContextFacade {
     private final UserCommandService userCommandService;
     private final UserQueryService userQueryService;
+    private final UserBanCommandServiceImpl userBanCommandService;
 
-    public IamContextFacade(UserCommandService userCommandService, UserQueryService userQueryService) {
+    public IamContextFacade(UserCommandService userCommandService, UserQueryService userQueryService, UserBanCommandServiceImpl userBanCommandService) {
         this.userCommandService = userCommandService;
         this.userQueryService = userQueryService;
+        this.userBanCommandService = userBanCommandService;
     }
 
     /**
@@ -80,5 +89,77 @@ public class IamContextFacade {
         if (result.isEmpty()) return Strings.EMPTY;
         return result.get().getUsername();
     }
+
+    /**
+     * Validates if a user exists with the given id.
+     * @param userId The id of the user to validate.
+     * @return true if the user exists, false otherwise.
+     */
+    public boolean validateUserExists(Long userId) {
+        if (userId == null || userId <= 0) return false;
+        var getUserByIdQuery = new GetUserByIdQuery(userId);
+        var result = userQueryService.handle(getUserByIdQuery);
+        return result.isPresent();
+    }
+
+    /**
+     * Bans a user for the specified duration
+     * @param userId The user ID to ban
+     * @param banDurationMinutes The ban duration in minutes
+     * @return true if user was successfully banned, false if user not found
+     */
+    public boolean banUser(Long userId, int banDurationMinutes) {
+        Duration duration = Duration.ofMinutes(banDurationMinutes);
+        var banCommand = new BanUserCommand(userId, duration);
+        return userBanCommandService.banUser(banCommand);
+    }
+
+    /**
+     * Unbans a user
+     * @param userId The user ID to unban
+     * @return true if user was successfully unbanned, false if user not found
+     */
+    public boolean unbanUser(Long userId) {
+        var unbanCommand = new UnbanUserCommand(userId);
+        return userBanCommandService.unbanUser(unbanCommand);
+    }
+
+    /**
+     * Checks if a user is currently banned
+     * @param userId The user ID to check
+     * @return true if user is banned, false otherwise
+     */
+    public boolean isUserBanned(Long userId) {
+        return userBanCommandService.isUserBanned(userId);
+    }
+
+    /**
+     * Gets the remaining ban duration for a user in minutes
+     * @param userId The user ID
+     * @return Minutes remaining, or 0 if not banned
+     */
+    public long getRemainingBanMinutes(Long userId) {
+        Duration remaining = userBanCommandService.getRemainingBanDuration(userId);
+        return remaining.toMinutes();
+    }
+
+    /**
+     * Gets the ban status information for a user
+     * @param userId The user ID
+     * @return A map containing isBanned (Boolean) and bannedUntil (LocalDateTime), or null if user not found
+     */
+    public Map<String, Object> getUserBanInfo(Long userId) {
+        var getUserByIdQuery = new GetUserByIdQuery(userId);
+        var result = userQueryService.handle(getUserByIdQuery);
+
+        if (result.isEmpty()) return null;
+
+        var user = result.get();
+        return Map.of(
+                "isBanned", user.getBanStatus().isActive(),
+                "bannedUntil", user.getBanStatus().bannedUntil() != null ? user.getBanStatus().bannedUntil() : ""
+        );
+    }
+
 
 }
