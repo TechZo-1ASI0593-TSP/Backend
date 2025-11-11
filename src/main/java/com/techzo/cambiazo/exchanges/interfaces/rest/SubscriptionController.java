@@ -100,4 +100,13 @@ public class SubscriptionController {
         }
     }
 
+    @Operation(summary = "Actualizar estado suscripción tras pago PayPal", description = "Actualiza el estado de la suscripción a 'Activo' tras pago exitoso de PayPal (fake endpoint)")
+    @PostMapping("/paypal/success/{subscriptionId}")
+    public ResponseEntity<SubscriptionResource> updateSubscriptionStatusAfterPaypal(@PathVariable Long subscriptionId) {
+        UpdateSubscriptionResource resource = new UpdateSubscriptionResource("Activo", 2L, 1L); // valores fake
+        var updateSubscriptionStatusCommand = UpdateSubscriptionCommandFromResourceAssembler.toCommandFromResource(subscriptionId, resource);
+        var subscription = subscriptionCommandService.handle(updateSubscriptionStatusCommand);
+        var subscriptionResource = SubscriptionResourceFromEntityAssembler.toResourceFromEntity(subscription.get());
+        return ResponseEntity.ok(subscriptionResource);
+    }
 }
